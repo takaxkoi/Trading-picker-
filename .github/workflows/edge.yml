@@ -25,6 +25,8 @@ jobs:
       - run: pip install -q vectorbt quantstats "pandas<2.3" "numpy<2.3" "plotly<6" pyyaml requests
       - name: Investor lenses
         run: python -m app.lenses
+      - name: Stock terminal profiles
+        run: python -m app.terminal
       - name: Performance report
         run: python -m app.perf
       - name: Edge Lab
