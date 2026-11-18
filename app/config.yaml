@@ -201,3 +201,8 @@ news:
   # News desk (job "News desk"). Headlines per stock and how many days back to look.
   per_ticker: 12
   max_age_days: 3
+
+filings:
+  # Filings Lab (SEC EDGAR, free). SEC requires automated visitors to give a name and real contact email.
+  # Example:  contact: "Lucky Smith lucky@example.com"
+  contact: ""

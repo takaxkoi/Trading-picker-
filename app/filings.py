@@ -12,6 +12,7 @@ results), annual data only, and no price-based valuation factors yet (share coun
 """
 from __future__ import annotations
 
+import os
 import time
 from datetime import datetime, timezone
 
@@ -21,7 +22,10 @@ import requests
 
 from .core import ROOT, SITE_DATA, load_config, log, write_json
 
-UA = {"User-Agent": "Trading-picker research takaxkoi@users.noreply.github.com", "Accept-Encoding": "gzip, deflate"}
+# SEC asks every automated visitor to identify itself with a name and a real contact email.
+# Set yours in config.yaml -> filings.contact (or the SEC_CONTACT secret), e.g. "Lucky Smith lucky@example.com".
+UA = {"User-Agent": os.environ.get("SEC_CONTACT") or "Trading-picker research takaxkoi@users.noreply.github.com", "Accept-Encoding": "gzip, deflate"}
+_SEEN: set = set()
 CACHE = ROOT / "data" / "filings" / "annual.csv.gz"
 TAGS = {
     "revenue": ["RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "SalesRevenueNet",
@@ -62,6 +66,9 @@ def sec_get(url: str):
             r = requests.get(url, headers=UA, timeout=40)
             if r.status_code == 200:
                 return r.json()
+            if r.status_code not in _SEEN:
+                _SEEN.add(r.status_code)
+                log(f"filings: SEC answered HTTP {r.status_code} for {url[:70]}")
             if r.status_code in (403, 429):
                 time.sleep(11)  # SEC asks for a pause when you go too fast
                 continue
@@ -215,6 +222,9 @@ def test_factor(df: pd.DataFrame, name: str) -> dict | None:
 def run() -> dict:
     from .edge import load_closes
     cfg = load_config()
+    contact = (cfg.get("filings") or {}).get("contact")
+    if contact and not os.environ.get("SEC_CONTACT"):
+        UA["User-Agent"] = str(contact)
     close = load_closes(years=11, min_bars=300)
     tickers = [t for t in close.columns if t.replace("-", "").isalpha() and t not in ("SPY", "QQQ", "DIA", "IWM") and not t.startswith("XL")]
     out = {"generated": datetime.now(timezone.utc).isoformat()}
@@ -224,7 +234,7 @@ def run() -> dict:
             raw = pd.read_csv(CACHE)
             out["note"] = "SEC did not answer this run; using the last saved download."
         else:
-            out["status"] = "SEC EDGAR did not answer this run. It will retry on the next schedule."
+            out["status"] = ("SEC EDGAR refused the download" + (f" (HTTP {sorted(_SEEN)[0]})" if _SEEN else "") + ". SEC requires a real contact email on automated requests: add yours in app/config.yaml under filings.contact, then run this job again.")
             write_json(SITE_DATA / "filings.json", out)
             return out
     else:
