@@ -169,7 +169,7 @@ const FLAG = {breakout:['🚀 breakout','g'],breakdown:['🕳 breakdown','r'],re
 const chips = f => (f||[]).map(x => `<span class="chip ${FLAG[x]?.[1]||''}">${FLAG[x]?.[0]||esc(x)}</span>`).join('');
 const meter = a => { const n = a.samples||0, up = Math.round((a.p_up||0)*n); let h=''; for(let i=0;i<n;i++) h += `<i class="${i<up?'u':'d'}"></i>`; return `<div class="meter" title="${up} of ${n} simulated futures go up">${h}</div>`; };
 
-const TABS = [['today','Today'],['live','Live Prices'],['watch','Watchlist'],['research','AI Research'],['news','News'],['lenses','Lenses'],['mscan','Market Scan'],['market','Market'],['scanner','S&P 500'],['other','Crypto · FX · Gold'],['report','Report Card'],['perf','Performance'],['edge','Edge Lab'],['backtest','Backtest Lab'],['paper','Paper Trading'],['journal','Journal'],['setup','Setup']];
+const TABS = [['today','Today'],['live','Live Prices'],['watch','Watchlist'],['research','AI Research'],['news','News'],['wsb','WallStreetBets'],['lenses','Lenses'],['mscan','Market Scan'],['market','Market'],['scanner','S&P 500'],['other','Crypto · FX · Gold'],['report','Report Card'],['perf','Performance'],['edge','Edge Lab'],['backtest','Backtest Lab'],['paper','Paper Trading'],['journal','Journal'],['setup','Setup']];
 let LATEST = null, REPORT = null;
 
 function navRender(active){
@@ -724,6 +724,31 @@ async function tickerExtras(t){
   if (n && n.n) h += `<div class="card" style="margin-top:14px"><h3>News sentiment <span class="r ${cls(n.score)}">${(n.score>0?'+':'')+n.score.toFixed(2)} · ${n.positive} bullish · ${n.negative} bearish</span></h3>${headlineList(n.items, 6)}</div>`;
   if (h && location.hash.toUpperCase().endsWith('T/' + t)) $('#view').insertAdjacentHTML('beforeend', h);
 }
+async function viewWSB(){
+  const W = await get('wsb.json');
+  if (!W){ $('#view').innerHTML = '<div class="empty">The WallStreetBets board refreshes with the news desk, three times each weekday. Run Actions → “News desk” to fill this now.</div>'; return; }
+  const T = W.tickers || [], P = W.posts || [], M = W.mood || {};
+  const up = T.filter(t => t.change != null && t.mentions >= 5).sort((a,b) => b.change - a.change)[0];
+  let h = W.status !== 'ok' ? `<div class="warnbox" style="margin-bottom:14px">${esc(W.status)}</div>` : '';
+  h += `<div class="grid g3"><div class="card"><h3>Most talked about</h3><div class="hero gold">${esc(T[0]?.ticker || '—')}</div><div class="sub">${T[0] ? T[0].mentions + ' mentions in 24 hours' : ''}</div></div>
+    <div class="card"><h3>Fastest riser</h3><div class="hero up">${esc(up?.ticker || '—')}</div><div class="sub">${up ? 'mentions ' + pct(up.change,0) + ' vs yesterday' : 'needs yesterday’s counts'}</div></div>
+    <div class="card"><h3>Mood of the posts</h3><div class="hero ${cls(M.score)}">${M.score==null?'—':M.score>0.08?'BULLISH':M.score<-0.08?'BEARISH':'MIXED'}</div><div class="sub">${M.positive||0} bullish · ${M.negative||0} bearish · ${M.neutral||0} neutral · updated ${ago(W.generated)}</div></div></div>
+    <div class="sec-title">Stocks they are talking about <small>mentions on r/wallstreetbets, last 24 hours</small></div><div class="card"><div id="ecWsb"></div></div>
+    <div class="card" style="margin-top:14px"><div class="tbl"><table><thead><tr><th>#</th><th>Ticker</th><th class="n">Mentions</th><th class="n">vs yesterday</th><th class="n">Upvotes</th><th class="n">Rank move</th></tr></thead><tbody>${T.slice(0,25).map(t=>{ const mv = t.rank_24h_ago ? t.rank_24h_ago - t.rank : null; return `<tr class="click" data-w="${esc(t.ticker)}"><td class="mono muted">${t.rank}</td><td><b>${esc(t.ticker)}</b> ${t.on_watchlist?'<span class="chip g">watchlist</span>':''} <span class="muted" style="font-size:11.5px">${esc((t.name||'').slice(0,20))}</span></td><td class="n">${t.mentions}</td><td class="n ${cls(t.change)}">${pct(t.change,0)}</td><td class="n">${(t.upvotes||0).toLocaleString()}</td><td class="n ${cls(mv)}">${mv==null?'—':mv>0?'▲ '+mv:mv<0?'▼ '+(-mv):'·'}</td></tr>`; }).join('')}</tbody></table></div></div>
+    <div class="sec-title">Popular posts <small id="wsbFilter">hot and top of the day</small></div><div class="card" id="wsbPosts"></div>
+    <div class="sub" style="margin-top:10px">Sources: ${Object.entries(W.sources||{}).map(([k,v])=>esc(k)+' '+esc(v)).join(' · ')}. Crowd chatter is not research; treat it as a list of what to look into.</div>`;
+  $('#view').innerHTML = h;
+  const posts = f => { const L = f ? P.filter(p => (p.tickers||[]).includes(f)) : P;
+    $('#wsbFilter').innerHTML = f ? `posts naming ${esc(f)} · <a href="javascript:void(0)" id="wsbAll">show all</a>` : 'hot and top of the day';
+    $('#wsbPosts').innerHTML = L.slice(0,30).map(p => `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)"><div style="flex:0 0 66px">${sentChip(p.label)}</div><div style="min-width:0"><a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--ink)">${esc(p.title)}</a><div class="sub" style="font-size:11.5px">${p.upvotes!=null?p.upvotes.toLocaleString()+' upvotes · '+p.comments.toLocaleString()+' comments · ':''}${esc(p.flair||'')} ${p.time?'· '+ago(p.time):''} ${(p.tickers||[]).map(t=>`<span class="chip y">${esc(t)}</span>`).join(' ')}</div></div></div>`).join('') || `<div class="empty">${f ? 'No popular post names '+esc(f)+' in its title right now.' : 'Reddit did not return posts this run.'}</div>`;
+    const a = document.getElementById('wsbAll'); if (a) a.onclick = () => posts(null); };
+  posts(null);
+  document.querySelectorAll('[data-w]').forEach(el => el.onclick = () => { posts(el.dataset.w); $('#wsbPosts').scrollIntoView({behavior:'smooth', block:'nearest'}); });
+  const S = T.slice(0,15).reverse();
+  const c = ec('ecWsb', {grid:{left:8, right:44, top:8, bottom:8, containLabel:true}, tooltip:{trigger:'axis', axisPointer:{type:'shadow'}}, xAxis: axV(), yAxis: axC(S.map(t => t.ticker)),
+    series:[{type:'bar', name:'Mentions', barMaxWidth:16, data:S.map(t => ({value:t.mentions, itemStyle:{color:t.on_watchlist?C.gold2:C.blue, borderRadius:3}})), label:{show:true, position:'right', color:C.ink2, fontSize:11, formatter:p => S[p.dataIndex].change==null?'':(S[p.dataIndex].change>0?'+':'')+(S[p.dataIndex].change*100).toFixed(0)+'%'}}]}, Math.max(260, S.length*26));
+  if (c) c.on('click', p => { posts(p.name); $('#wsbPosts').scrollIntoView({behavior:'smooth', block:'nearest'}); });
+}
 function setupNeeded(){ location.hash = 'setup'; }
 async function viewSetup(){
   $('#view').innerHTML = `<div class="grid g2"><div class="card"><h3>Go-live checklist</h3><ol class="steps">
@@ -748,7 +773,7 @@ async function route(){
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, '')) || 'today';
   if (h.startsWith('t/')){ navRender(''); try { await viewTicker(h.slice(2).toUpperCase()); } catch(e){ $('#view').innerHTML = `<span class="back" onclick="history.back()">← BACK</span><div class="empty">Couldn't show this ticker: ${esc(e.message)}</div>`; } window.scrollTo(0,0); return; }
   navRender(h); ecClear();
-  const fn = {today:viewToday, watch:viewWatch, market:viewMarket, scanner:viewScanner, other:viewOther, report:viewReport, research:viewResearch, mscan:viewMarketScan, live:viewLive, news:viewNews, lenses:viewLenses, edge:viewEdge, perf:viewPerf, backtest:viewBacktest, paper:viewPaper, journal:viewJournal, setup:viewSetup}[h] || viewToday;
+  const fn = {today:viewToday, watch:viewWatch, market:viewMarket, scanner:viewScanner, other:viewOther, report:viewReport, research:viewResearch, mscan:viewMarketScan, live:viewLive, news:viewNews, wsb:viewWSB, lenses:viewLenses, edge:viewEdge, perf:viewPerf, backtest:viewBacktest, paper:viewPaper, journal:viewJournal, setup:viewSetup}[h] || viewToday;
   try { await fn(); } catch(e){ $('#view').innerHTML = `<div class="empty">Couldn't render this view: ${esc(e.message)}</div>`; }
 }
 let GATED = false;

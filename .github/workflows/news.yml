@@ -30,6 +30,9 @@ jobs:
           key: hf-finbert-v1
       - name: Headlines + sentiment
         run: python -m app.news
+      - name: WallStreetBets board
+        if: always()
+        run: python -m app.wsb
       - name: Save results
         if: always()
         run: ./scripts/commit.sh "news desk"
