@@ -66,7 +66,7 @@ def run() -> dict:
 
     for kind in ("gainers", "losers", "active"):
         out["movers"][kind] = first(kind, (f"equity.discovery.{kind}", {"provider": "yfinance"}), (f"yfinance.equity.discovery.{kind}", {}),
-                                    ("nasdaq.markets.movers", {"category": kind}), ("nasdaq.markets.movers", {}))[:15]
+                                    ("nasdaq.markets.movers", {"category": {"gainers": "most_advanced", "losers": "most_declined", "active": "most_active_dollar_volume"}[kind]}))[:15]
     out["targets"] = []
     for t in [x.upper() for x in cfg.get("watchlist", [])]:
         rows = first(f"consensus {t}", ("equity.estimates.consensus", {"symbol": t, "provider": "yfinance"}), ("yfinance.equity.estimates.consensus", {"symbol": t}))

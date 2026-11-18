@@ -556,12 +556,19 @@ function scanTable(rows){
 }
 async function viewMarketScan(){
   const T = await get('tickerbot.json');
-  if (!T){ $('#view').innerHTML = '<div class="empty">The market scan runs after each close. Add the TICKERBOT_API_KEY secret, then run Actions → “Market scan (Tickerbot)”.</div>'; return; }
+  if (!T){ $('#view').innerHTML = '<div class="empty">The market scan runs after each close. Add the TICKERBOT_API_KEY secret, then run Actions → “Market scan (Tickerbot)”.</div>' + await deskHTML(); return; }
   let h = T.status !== 'ok' ? `<div class="warnbox" style="margin-bottom:14px">${esc(T.status)}</div>` : '';
   h += `<div class="sub" style="margin-bottom:6px">Whole-market screens from Tickerbot · ${T.signals_available||0} signals available · updated ${ago(T.generated)}</div>`;
   (T.scans||[]).forEach(sc => { h += `<div class="sec-title">${esc(sc.name)} <small>${sc.total!=null?sc.total+' matches':''}</small></div><div class="card"><div class="sub" style="margin-bottom:10px">${esc(sc.why||'')}</div>${sc.error?`<div class="warnbox">${esc(sc.error)}</div>`:scanTable(sc.results)}<div class="sub mono" style="margin-top:10px;font-size:11px;white-space:normal">${esc(sc.q)}</div></div>`; });
   if ((T.watchlist||[]).length) h += `<div class="sec-title">Your watchlist right now</div><div class="card">${scanTable(T.watchlist)}</div>`;
-  $('#view').innerHTML = h;
+  $('#view').innerHTML = h + await deskHTML();
+}
+async function deskHTML(){
+  const D = await get('desk.json'); if (!D) return '';
+  const mv = (rows) => (rows||[]).length ? `<div class="tbl"><table><thead><tr><th>Ticker</th><th class="n">Price</th><th class="n">Change</th><th class="n">Volume</th></tr></thead><tbody>${rows.slice(0,10).map(r=>`<tr class="click" onclick="location.hash='t/${esc(r.symbol||'')}'"><td><b>${esc(r.symbol||'')}</b> <span class="muted" style="font-size:11.5px">${esc(String(r.name||'').slice(0,24))}</span></td><td class="n">${px(r.price)}</td><td class="n ${cls(r.change_percent)}">${pct(r.change_percent)}</td><td class="n">${big(r.volume)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="sub">No data this run.</div>';
+  let h = `<div class="sec-title">Market movers <small>via OpenBB · updated ${ago(D.generated)}</small></div><div class="grid g3"><div class="card"><h3>Biggest gainers</h3>${mv(D.movers?.gainers)}</div><div class="card"><h3>Biggest losers</h3>${mv(D.movers?.losers)}</div><div class="card"><h3>Most traded</h3>${mv(D.movers?.active)}</div></div>`;
+  if ((D.targets||[]).length) h += `<div class="sec-title">Analyst targets on your watchlist <small>via OpenBB</small></div><div class="card"><div class="tbl"><table><thead><tr><th>Ticker</th><th class="n">Price</th><th class="n">Low</th><th class="n">Average</th><th class="n">High</th><th class="n">Upside</th><th>Rating</th><th class="n">Analysts</th></tr></thead><tbody>${D.targets.map(r=>{ const up = r.target_consensus && r.current_price ? r.target_consensus/r.current_price - 1 : null; return `<tr class="click" onclick="location.hash='t/${esc(r.ticker)}'"><td><b>${esc(r.ticker)}</b></td><td class="n">${px(r.current_price)}</td><td class="n">${px(r.target_low)}</td><td class="n">${px(r.target_consensus)}</td><td class="n">${px(r.target_high)}</td><td class="n ${cls(up)}">${pct(up,0)}</td><td>${esc(String(r.recommendation||'').replace('_',' '))}</td><td class="n">${r.number_of_analysts ?? '—'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+  return h;
 }
 async function viewLive(){
   const Q = await get('quotes.json');
