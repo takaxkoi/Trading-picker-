@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 240
     env:
-      ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN }}
-      FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+      ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN || secrets.ORACLE }}
+      FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY || secrets.FINHUB }}
       FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
     steps:
       - uses: actions/checkout@v4

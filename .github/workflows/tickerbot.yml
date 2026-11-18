@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      TICKERBOT_API_KEY: ${{ secrets.TICKERBOT_API_KEY }}
-      ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN }}
+      TICKERBOT_API_KEY: ${{ secrets.TICKERBOT_API_KEY || secrets.TICKER }}
+      ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN || secrets.ORACLE }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

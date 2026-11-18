@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN }}
+      ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN || secrets.ORACLE }}
       SEC_CONTACT: ${{ secrets.SEC_CONTACT }}
     steps:
       - uses: actions/checkout@v4

@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+      FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY || secrets.FINHUB }}
       REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
       REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-      ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN }}
+      ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN || secrets.ORACLE }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
