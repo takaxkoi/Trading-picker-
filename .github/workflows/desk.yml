@@ -22,7 +22,9 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: .github/workflows/desk.yml
-      - run: pip install -q openbb pyyaml requests numpy
+      - run: pip install -q openbb openbb-yfinance pyyaml requests numpy
+      - name: Build OpenBB (needs its own process)
+        run: python -c "import openbb; openbb.build()" || true
       - name: Movers, yield curve, filings
         run: python -m app.desk
       - name: Save results

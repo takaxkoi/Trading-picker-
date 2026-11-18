@@ -33,6 +33,8 @@ def run() -> dict:
         write_json(SITE_DATA / "desk.json", out)
         return out
 
+    log('desk: OpenBB sections: ' + ', '.join(a for a in dir(obb) if not a.startswith('_')))
+
     def tryit(label, fn):
         try:
             return _records(fn())
