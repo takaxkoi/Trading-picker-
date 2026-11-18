@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 import requests
 
-from .core import ROOT, SITE_DATA, load_config, log, write_json
+from .core import ROOT, SITE_DATA, load_config, log, read_json, write_json
 
 # SEC asks every automated visitor to identify itself with a name and a real contact email.
 # Set yours in config.yaml -> filings.contact (or the SEC_CONTACT secret), e.g. "Lucky Smith lucky@example.com".
@@ -205,7 +205,7 @@ def test_factor(df: pd.DataFrame, name: str) -> dict | None:
         if len(grp) < 100:
             continue
         q = pd.qcut(grp["v"].rank(method="first"), 5, labels=False)
-        m = grp.groupby(q)["excess"].mean()
+        m = grp.groupby(q)["excess"].median()  # median: a handful of ten-baggers must not decide the result
         if len(m) == 5:
             quint.append(m.values)
             spreads.append((int(y), float(m.iloc[4] - m.iloc[0])))
@@ -219,7 +219,8 @@ def test_factor(df: pd.DataFrame, name: str) -> dict | None:
             "better": "high" if s.mean() > 0 else "low", "works": bool(abs(t) >= 2 and max(pos, 1 - pos) >= 0.65)}
 
 
-def run() -> dict:
+def run(cached: bool = False) -> dict:
+    """cached=True re-runs the analysis on the last saved download without calling SEC."""
     from .edge import load_closes
     cfg = load_config()
     contact = (cfg.get("filings") or {}).get("contact")
@@ -228,8 +229,11 @@ def run() -> dict:
     close = load_closes(years=11, min_bars=300)
     tickers = [t for t in close.columns if t.replace("-", "").isalpha() and t not in ("SPY", "QQQ", "DIA", "IWM") and not t.startswith("XL")]
     out = {"generated": datetime.now(timezone.utc).isoformat()}
-    raw, meta = download(tickers)
-    if raw.empty:
+    prev = read_json(SITE_DATA / "filings.json", {})
+    raw, meta = (pd.read_csv(CACHE), {}) if cached and CACHE.exists() else download(tickers)
+    if cached and CACHE.exists():
+        pass
+    elif raw.empty:
         if CACHE.exists():
             raw = pd.read_csv(CACHE)
             out["note"] = "SEC did not answer this run; using the last saved download."
@@ -269,11 +273,11 @@ def run() -> dict:
         "watchlist": [card(rows[t]) for t in watch if t in rows],
         "top": [card(r) for _, r in latest.dropna(subset=["composite"]).sort_values("composite", ascending=False).head(20).iterrows()],
         "bottom": [card(r) for _, r in latest.dropna(subset=["composite"]).sort_values("composite").head(10).iterrows()],
-        "recent": recent_filings(watch, meta.get("cik", {})) if meta.get("cik") else [],
-        "missing": len(meta.get("missing", [])),
+        "recent": recent_filings(watch, meta.get("cik", {})) if meta.get("cik") else prev.get("recent", []),
+        "missing": len(meta.get("missing", [])) if meta else prev.get("missing", 0),
         "verdict": (f"{len(works)} of {len(res)} filing factors separated winners from losers in most years: " + ", ".join(f"{r['name']} ({r['better']} is better, {abs(r['spread']):.1%} a year)" for r in works) + "."
                     if works else f"None of the {len(res)} filing factors separated winners from losers reliably enough to trust. The score below uses the three strongest and should be read as a starting point for research."),
-        "caveats": "Tested only on companies in the S&P 500 today, so companies that failed or were dropped are missing and results look better than they were. Annual reports only. Returns are measured for 12 months from the day after each filing, against the average stock.",
+        "caveats": "Read these with care. The test only includes companies that are in the S&P 500 today, so every past loser that went bust or was dropped is missing. That flatters anything that looks risky at filing time (low margins, heavy R&D, fast growth), because the risky companies still in the index are by definition the ones that made it. Annual reports only. Each group's result is its median stock over the 12 months after filing, against the average stock.",
     })
     write_json(SITE_DATA / "filings.json", out)
     try:
@@ -285,4 +289,5 @@ def run() -> dict:
 
 
 if __name__ == "__main__":
-    run()
+    import sys
+    run(cached="--cached" in sys.argv)
