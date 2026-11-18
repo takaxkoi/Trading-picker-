@@ -318,8 +318,14 @@ def capture() -> dict:
 
     # one-time long backfill of daily history so the Edge Lab has years to test on
     hist_dir = VAULT / "history"
-    if cc.get("backfill", True) and not (hist_dir / "_done").exists():
-        log("backfilling 10 years of daily prices (one time)…")
+    earlier = sorted(d.name for d in (VAULT / "daily").iterdir() if d.is_dir() and d.name < day) if (VAULT / "daily").exists() else []
+    last_full = (hist_dir / "_done").read_text().strip() if (hist_dir / "_done").exists() else None
+    # each daily file carries 5 trading days, so any break of more than a week between captures
+    # since the last full download leaves a hole in the history
+    chain = [last_full] + [x for x in earlier if x > last_full] + [day] if last_full else []
+    gap = any((pd.Timestamp(b) - pd.Timestamp(a)).days > 7 for a, b in zip(chain, chain[1:]))
+    if cc.get("backfill", True) and (last_full is None or gap):
+        log("downloading 10 years of daily prices (first run, or the vault missed more than a week)…")
         full = fetch_history(universe, "1d", cfg, period="10y")
         for t, df in full.items():
             _save_csv(df.reset_index(), hist_dir / f"{t.replace('^', '_').replace('=', '_')}.csv.gz")
