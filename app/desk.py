@@ -35,6 +35,13 @@ def run() -> dict:
 
     log('desk: OpenBB sections: ' + ', '.join(a for a in dir(obb) if not a.startswith('_')))
 
+    try:
+        cmds = sorted(obb.coverage.commands)
+        for pre in (".yfinance", ".sec", ".ustreasury", ".federal_reserve", ".news", ".finra", ".nasdaq"):
+            log("desk: commands " + pre + ": " + ", ".join(c for c in cmds if c.startswith(pre)))
+    except Exception as e:
+        log(f"desk: coverage failed: {e}")
+
     def tryit(label, fn):
         try:
             return _records(fn())
