@@ -196,3 +196,8 @@ quotes:
     tickerbot: 40        # one call covers the whole list; raise if your plan allows more
     alpaca: 2000         # one call covers the whole list
     alphavantage: 3      # free key is 25 a day and the data vault uses most of them
+
+news:
+  # News desk (job "News desk"). Headlines per stock and how many days back to look.
+  per_ticker: 12
+  max_age_days: 3
