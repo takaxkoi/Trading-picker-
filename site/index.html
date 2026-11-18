@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kronos Oracle</title>
+<meta name="description" content="Private AI market forecasting: thirty simulated futures per stock, trade plans, and a report card that grades every call.">
+<meta name="theme-color" content="#0B0B0D">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0A0A0C;--panel:#131316;--line:#25252B;--ink:#EEE9DC;--ink2:#B3AC9C;--muted:#7A7466;--gold:#BF9A3F;--gold2:#DCBE6E;--up:#1F9E89;--dn:#E0565B;
+  --serif:'Fraunces',Georgia,serif;--mono:'JetBrains Mono',ui-monospace,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
+.logo{display:flex;align-items:center;gap:10px;font:600 15px var(--serif);letter-spacing:.14em}
+.logo b{color:var(--gold)}
+.nav-links{display:flex;gap:26px;align-items:center;font-size:14px;color:var(--ink2)}
+.nav-links a:hover{color:var(--ink)}
+@media(max-width:700px){.nav-links .hide-m{display:none}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;padding:12px 22px;font:600 14px Inter;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink);transition:transform .15s,border-color .15s,background .15s}
+.btn:hover{border-color:var(--gold);transform:translateY(-1px)}
+.btn.gold{background:linear-gradient(180deg,var(--gold2),var(--gold));color:#15120A;border-color:transparent}
+.btn.sm{padding:8px 16px;font-size:13px}
+/* hero */
+.hero > *{position:relative;z-index:1}.hero > .glow{position:absolute;z-index:0}
+.hero{position:relative;overflow:hidden;padding:70px 0 40px;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:30px}}
+.eyebrow{font:500 12px var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--gold2)}
+h1{font:400 clamp(44px,7vw,84px)/1.02 var(--serif);letter-spacing:-.02em;margin:18px 0 22px}
+h1 em{font-style:italic;color:var(--gold2)}
+.lede{font-size:18px;color:var(--ink2);max-width:540px}
+.cta{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap}
+.glow{position:absolute;top:-200px;right:-200px;width:700px;height:700px;background:radial-gradient(closest-side,rgba(191,154,63,.16),transparent);pointer-events:none;z-index:0}
+.fan{width:100%;height:auto;display:block}
+.fan-cap{font:500 11px var(--mono);color:var(--muted);letter-spacing:.08em;margin-top:8px;text-align:right}
+/* sections */
+section{padding:80px 0;border-top:1px solid var(--line)}
+h2{font:400 clamp(32px,4.4vw,52px)/1.08 var(--serif);letter-spacing:-.015em;margin:12px 0 18px}
+h2 em{font-style:italic;color:var(--gold2)}
+.sub{color:var(--ink2);max-width:620px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:44px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
+.feat{background:linear-gradient(180deg,#16161A,var(--panel));border:1px solid var(--line);border-radius:18px;padding:24px;min-height:190px}
+.feat .ic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:rgba(191,154,63,.1);border:1px solid rgba(191,154,63,.3);margin-bottom:16px}
+.feat h3{font:600 17px Inter;margin:0 0 8px}
+.feat p{margin:0;color:var(--ink2);font-size:14.5px}
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-top:44px;counter-reset:s}
+@media(max-width:900px){.steps{grid-template-columns:1fr 1fr;gap:24px 0}}
+@media(max-width:520px){.steps{grid-template-columns:1fr}}
+.step{padding:0 22px 0 0;position:relative}
+.step:before{counter-increment:s;content:"0" counter(s);font:500 12px var(--mono);color:var(--gold2);letter-spacing:.14em;display:block;margin-bottom:14px}
+.step:after{content:"";position:absolute;top:7px;left:34px;right:16px;height:1px;background:linear-gradient(90deg,rgba(191,154,63,.5),transparent)}
+.step h4{font:600 16px Inter;margin:0 0 6px}
+.step p{margin:0;color:var(--ink2);font-size:14px}
+.honest{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+@media(max-width:900px){.honest{grid-template-columns:1fr}}
+.quote{font:400 italic clamp(24px,3vw,34px)/1.3 var(--serif);color:var(--ink);border-left:2px solid var(--gold);padding-left:24px}
+.ticks{list-style:none;padding:0;margin:0}
+.ticks li{padding:14px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;color:var(--ink2)}
+.ticks li b{color:var(--ink);font-weight:600}
+.ticks li:before{content:"◆";color:var(--gold);font-size:11px;padding-top:5px}
+/* sign in */
+.signin{display:grid;grid-template-columns:1fr 440px;gap:40px;align-items:center}
+@media(max-width:900px){.signin{grid-template-columns:1fr}}
+.card{background:linear-gradient(180deg,#17171B,var(--panel));border:1px solid var(--line);border-radius:22px;padding:30px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.card h3{font:400 28px var(--serif);margin:0 0 4px}
+label{display:block;font:500 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+input{width:100%;background:#0C0C0F;border:1px solid var(--line);border-radius:12px;padding:13px 14px;color:var(--ink);font:15px Inter}
+input:focus{outline:none;border-color:var(--gold)}
+.card .btn{width:100%;margin-top:22px;padding:14px}
+.msg{min-height:22px;margin-top:14px;font-size:13.5px;color:var(--ink2)}
+.msg.err{color:#F08C8F}.msg.ok{color:#5CC9B4}
+.link{background:none;border:0;color:var(--gold2);font:500 13px Inter;cursor:pointer;padding:0;margin-top:14px}
+.badge{display:inline-block;font:500 11px var(--mono);letter-spacing:.14em;color:var(--gold2);border:1px solid rgba(191,154,63,.4);border-radius:999px;padding:5px 12px;margin-bottom:16px}
+footer{border-top:1px solid var(--line);padding:34px 0 50px;color:var(--muted);font-size:12.5px}
+footer .row{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="logo" href="#"><svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#16161A" stroke="#33333B"/><path d="M14 44 L26 30 L34 37 L50 18" stroke="#BF9A3F" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="50" cy="18" r="4" fill="#DCBE6E"/></svg>KRONOS <b>ORACLE</b></a>
+    <div class="nav-links"><a class="hide-m" href="#how">How it works</a><a class="hide-m" href="#honest">Report card</a><a class="btn sm" id="navBtn" href="#signin">Sign in</a></div>
+  </nav>
+
+  <header class="hero">
+    <div class="glow" aria-hidden="true"></div>
+    <div>
+      <div class="eyebrow">Private AI market desk</div>
+      <h1>Thirty futures.<br>One <em>honest</em> answer.</h1>
+      <p class="lede">Kronos Oracle runs a foundation model trained on market candles across every stock you follow, simulates thirty possible weeks ahead, and turns the agreement into scores, ranges and trade plans. Then it grades every call against what really happened.</p>
+      <div class="cta"><a class="btn gold" href="#signin" id="heroBtn">Sign in</a><a class="btn" href="#how">See how it works</a></div>
+    </div>
+    <div>
+      <svg class="fan" id="fan" viewBox="0 0 560 400" role="img" aria-label="Illustration: price history splitting into many possible future paths"></svg>
+      <div class="fan-cap">ILLUSTRATION · ONE HISTORY, MANY POSSIBLE FUTURES</div>
+    </div>
+  </header>
+
+  <section id="features" class="reveal">
+    <div class="eyebrow">Inside the desk</div>
+    <h2>Everything a call needs, <em>nothing it doesn't.</em></h2>
+    <p class="sub">Built around one question: is the model actually right? Every number on the dashboard traces back to simulated futures, real prices and a graded track record.</p>
+    <div class="grid">
+      <div class="feat"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DCBE6E" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div><h3>Agreement meter</h3><p>How many of thirty simulated futures land in the same direction, rolled into a 0–100 Kronos Score.</p></div>
+      <div class="feat"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DCBE6E" stroke-width="2"><path d="M4 18h16M7 14l3-3 3 2 5-6"/></svg></div><h3>Trade plans</h3><p>Entry zone, stop, target, position size and hold time, shown only when the reward is at least twice the risk.</p></div>
+      <div class="feat"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DCBE6E" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></div><h3>Report card</h3><p>Every prediction is logged and graded: hit rate, calibration, streaks and accuracy by sector, timeframe and market mood.</p></div>
+      <div class="feat"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DCBE6E" stroke-width="2"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></div><h3>Data vault</h3><p>A daily snapshot of fundamentals, short interest, analyst moves, insider trades and options positioning across the S&amp;P 500.</p></div>
+      <div class="feat"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DCBE6E" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></div><h3>Telegram desk</h3><p>Pre-market briefing, after-close recap, high-confidence alerts and price-hit pings, plus forecasts on demand.</p></div>
+      <div class="feat"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DCBE6E" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-6"/></svg></div><h3>Backtest lab</h3><p>Walk-forward replays against buy-and-hold and simple rules. Ideas that can't beat a coin flip don't get promoted.</p></div>
+    </div>
+  </section>
+
+  <section id="how" class="reveal">
+    <div class="eyebrow">How it works</div>
+    <h2>From candles to a <em>graded</em> call.</h2>
+    <div class="steps">
+      <div class="step"><h4>Capture</h4><p>After every close, prices and point-in-time market data are saved to the vault.</p></div>
+      <div class="step"><h4>Simulate</h4><p>Kronos reads recent candles and samples thirty possible paths for each stock.</p></div>
+      <div class="step"><h4>Decide</h4><p>Agreement, ranges, signals and trade plans are built from those paths.</p></div>
+      <div class="step"><h4>Grade</h4><p>When each forecast window closes, the call is scored against reality.</p></div>
+    </div>
+  </section>
+
+  <section id="honest" class="reveal">
+    <div class="honest">
+      <p class="quote">The point isn't to sound confident. It's to know, with numbers, when the model has earned your trust and when it hasn't.</p>
+      <ul class="ticks">
+        <li><span><b>Every call is recorded</b> before the outcome is known.</span></li>
+        <li><span><b>Calibration is checked:</b> 80% sure should mean right about 80% of the time.</span></li>
+        <li><span><b>Paper money first.</b> Real-money automation stays locked until the report card passes.</span></li>
+        <li><span><b>Forecasts, not promises.</b> Not financial advice.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="signin" class="reveal">
+    <div class="signin">
+      <div>
+        <span class="badge">INVITATION ONLY</span>
+        <h2>Welcome back to <em>the desk.</em></h2>
+        <p class="sub">Access is limited to approved members. Sign in with your username (or email) and password.</p>
+      </div>
+      <form class="card" id="form" autocomplete="on">
+        <h3 id="formTitle">Sign in</h3>
+        <div id="pwBlock">
+          <label for="email">Username or email</label>
+          <input id="email" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+          <label for="password">Password</label>
+          <input id="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="btn gold" type="submit" id="submit">Sign in</button>
+        <button class="link" type="button" id="forgot">Forgot password?</button>
+        <div class="msg" id="msg" role="status"></div>
+      </form>
+    </div>
+  </section>
+</div>
+<footer><div class="wrap row"><span>© Kronos Oracle · Private research tool</span><span>Model forecasts are probabilities, not guarantees. Nothing here is financial advice.</span></div></footer>
+
+<script>
+const sb = window.supabase.createClient('https://stzeugbijanjwroibtmx.supabase.co', 'sb_publishable_IsJeraZpjoUXbeO8Lr-F_g_14h7UoUm');
+const $ = s => document.querySelector(s);
+const msg = (t, cls='') => { const m = $('#msg'); m.textContent = t; m.className = 'msg ' + cls; };
+let mode = 'signin';
+
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session){
+    ['#navBtn','#heroBtn'].forEach(s => { $(s).textContent = 'Open dashboard'; $(s).href = 'app.html'; });
+    $('#formTitle').textContent = 'You’re signed in';
+    $('#pwBlock').style.display = 'none'; $('#forgot').style.display = 'none';
+    $('#submit').textContent = 'Open dashboard'; mode = 'open';
+  }
+});
+
+$('#form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (mode === 'open'){ location.href = 'app.html'; return; }
+  let email = $('#email').value.trim().toLowerCase();
+  if (email && !email.includes('@')) email = email + '@kronos-oracle.netlify.app';  // usernames map to app-only logins
+  if (mode === 'reset'){
+    if (!email) return msg('Enter your email first.', 'err');
+    $('#submit').disabled = true;
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/app.html' });
+    $('#submit').disabled = false;
+    return error ? msg(error.message, 'err') : msg('If that email has an account, a reset link is on its way.', 'ok');
+  }
+  $('#submit').disabled = true; msg('Signing in…');
+  const { error } = await sb.auth.signInWithPassword({ email, password: $('#password').value });
+  $('#submit').disabled = false;
+  if (error) return msg(error.message === 'Invalid login credentials' ? 'That email and password don’t match.' : error.message, 'err');
+  msg('Welcome back.', 'ok');
+  location.href = 'app.html';
+});
+
+$('#forgot').addEventListener('click', () => {
+  mode = mode === 'reset' ? 'signin' : 'reset';
+  const reset = mode === 'reset';
+  $('#formTitle').textContent = reset ? 'Reset password' : 'Sign in';
+  $('#password').previousElementSibling.style.display = reset ? 'none' : '';
+  $('#password').style.display = reset ? 'none' : ''; $('#password').required = !reset;
+  $('#submit').textContent = reset ? 'Email me a reset link' : 'Sign in';
+  $('#forgot').textContent = reset ? 'Back to sign in' : 'Forgot password?';
+  msg('');
+});
+
+/* decorative fan of possible futures (illustration only; no market data) */
+(function fan(){
+  const svg = $('#fan'), W = 560, H = 400, split = 300;
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const hist = []; let y = 260;
+  for (let i = 0; i <= 30; i++){ y += (rnd() - 0.48) * 14; hist.push([i * split / 30, y]); }
+  let s = `<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#BF9A3F" stop-opacity=".0"/><stop offset=".25" stop-color="#BF9A3F" stop-opacity=".55"/><stop offset="1" stop-color="#DCBE6E" stop-opacity=".15"/></linearGradient></defs>`;
+  for (let g = 0; g < 6; g++) s += `<line x1="0" x2="${W}" y1="${60 + g * 56}" y2="${60 + g * 56}" stroke="#1E1E23"/>`;
+  s += `<line x1="${split}" x2="${split}" y1="30" y2="${H - 20}" stroke="#33333B" stroke-dasharray="3 5"/>`;
+  s += `<polyline points="${hist.map(p => p.join(',')).join(' ')}" fill="none" stroke="#EEE9DC" stroke-width="2.2" stroke-linejoin="round"/>`;
+  const end = hist[hist.length - 1];
+  const paths = [];
+  for (let k = 0; k < 30; k++){
+    let py = end[1], drift = (rnd() - 0.5) * 2.6; const pts = [end];
+    for (let i = 1; i <= 26; i++){ py += drift + (rnd() - 0.5) * 9; pts.push([split + i * (W - split - 10) / 26, py]); }
+    paths.push(pts);
+  }
+  paths.forEach((pts, k) => { s += `<polyline class="fp" style="animation-delay:${k * 40}ms" points="${pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="url(#g)" stroke-width="1.2"/>`; });
+  s += `<circle cx="${end[0]}" cy="${end[1]}" r="5" fill="#DCBE6E"/><circle cx="${end[0]}" cy="${end[1]}" r="12" fill="none" stroke="#BF9A3F" stroke-opacity=".4"><animate attributeName="r" values="6;16;6" dur="3s" repeatCount="indefinite"/><animate attributeName="stroke-opacity" values=".6;0;.6" dur="3s" repeatCount="indefinite"/></circle>`;
+  svg.innerHTML = s;
+  const st = document.createElement('style');
+  st.textContent = `.fp{stroke-dasharray:600;stroke-dashoffset:600;animation:draw 2.2s ease forwards}@keyframes draw{to{stroke-dashoffset:0}}@media (prefers-reduced-motion: reduce){.fp{animation:none;stroke-dashoffset:0}}`;
+  document.head.appendChild(st);
+})();
+
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+if (location.hash === '#signin') setTimeout(() => $('#email')?.focus(), 400);
+</script>
+</body>
+</html>

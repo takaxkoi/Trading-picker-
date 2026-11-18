@@ -1,0 +1,20 @@
+# Build only the website folder. Without base = "site", Netlify sees requirements.txt at the repo
+# root and tries to install PyTorch for every deploy, which fails.
+[build]
+  base = "site"
+  publish = "."
+  command = "echo static site"
+
+# forecast files live in Supabase behind the login; never serve the raw copies
+[[redirects]]
+  from = "/data/*"
+  to = "/"
+  status = 302
+  force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Content-Type-Options = "nosniff"
