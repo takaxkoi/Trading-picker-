@@ -1,0 +1,33 @@
+name: Live prices
+on:
+  schedule:
+    - cron: "7,37 12-21 * * 1-5"   # every 30 min from pre-market to just after the close, weekdays
+    - cron: "7 23 * * 1-5"          # one after-hours check
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: oracle-prices
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TICKERBOT_API_KEY: ${{ secrets.TICKERBOT_API_KEY }}
+      FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+      ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+      ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+      ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests pyyaml numpy
+      - name: Prices
+        run: python -m app.quotes
+      - name: Save results
+        if: always()
+        run: ./scripts/commit.sh "live prices"

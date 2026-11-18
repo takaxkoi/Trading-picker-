@@ -167,7 +167,7 @@ const FLAG = {breakout:['🚀 breakout','g'],breakdown:['🕳 breakdown','r'],re
 const chips = f => (f||[]).map(x => `<span class="chip ${FLAG[x]?.[1]||''}">${FLAG[x]?.[0]||esc(x)}</span>`).join('');
 const meter = a => { const n = a.samples||0, up = Math.round((a.p_up||0)*n); let h=''; for(let i=0;i<n;i++) h += `<i class="${i<up?'u':'d'}"></i>`; return `<div class="meter" title="${up} of ${n} simulated futures go up">${h}</div>`; };
 
-const TABS = [['today','Today'],['watch','Watchlist'],['research','AI Research'],['mscan','Market Scan'],['market','Market'],['scanner','S&P 500'],['other','Crypto · FX · Gold'],['report','Report Card'],['backtest','Backtest Lab'],['paper','Paper Trading'],['journal','Journal'],['setup','Setup']];
+const TABS = [['today','Today'],['live','Live Prices'],['watch','Watchlist'],['research','AI Research'],['mscan','Market Scan'],['market','Market'],['scanner','S&P 500'],['other','Crypto · FX · Gold'],['report','Report Card'],['backtest','Backtest Lab'],['paper','Paper Trading'],['journal','Journal'],['setup','Setup']];
 let LATEST = null, REPORT = null;
 
 function navRender(active){
@@ -556,6 +556,16 @@ async function viewMarketScan(){
   if ((T.watchlist||[]).length) h += `<div class="sec-title">Your watchlist right now</div><div class="card">${scanTable(T.watchlist)}</div>`;
   $('#view').innerHTML = h;
 }
+async function viewLive(){
+  const Q = await get('quotes.json');
+  if (!Q){ $('#view').innerHTML = '<div class="empty">Live prices refresh every 30 minutes on weekdays. Run Actions → “Live prices” to fill this now.</div>'; return; }
+  const names = {yahoo:'Yahoo', finnhub:'Finnhub', tickerbot:'Tickerbot', alpaca:'Alpaca', alphavantage:'Alpha Vantage'};
+  let h = Q.status !== 'ok' ? `<div class="warnbox" style="margin-bottom:14px">${esc(Q.status)}${(Q.missing||[]).length?': '+esc(Q.missing.join(', ')):''}</div>` : '';
+  h += `<div class="sub" style="margin-bottom:10px">Updated ${ago(Q.generated)} · this run was led by ${esc(names[Q.lead]||'—')} · sources take turns so the free limits last all day</div>`;
+  h += `<div class="card"><div class="tbl"><table><thead><tr><th>Ticker</th><th class="n">Price</th><th class="n">Today</th><th class="n">Low</th><th class="n">High</th><th>Source</th></tr></thead><tbody>${(Q.rows||[]).map(r=>`<tr class="click" onclick="location.hash='t/${esc(r.ticker)}'"><td><b>${esc(r.ticker)}</b></td><td class="n">${px(r.price)}</td><td class="n ${cls(r.change_pct)}">${r.change_pct==null?'—':(r.change_pct>0?'+':'')+r.change_pct.toFixed(2)+'%'}</td><td class="n">${px(r.low)}</td><td class="n">${px(r.high)}</td><td class="sub">${esc(names[r.source]||r.source)}</td></tr>`).join('')}</tbody></table></div></div>`;
+  h += `<div class="sec-title">Price sources <small>calls used today</small></div><div class="card"><div class="tbl"><table><thead><tr><th>Source</th><th>Status</th><th class="n">Used</th><th class="n">Daily cap</th><th>Note</th></tr></thead><tbody>${(Q.sources||[]).map(s=>`<tr><td><b>${esc(names[s.name]||s.name)}</b></td><td>${s.connected?'<span class="chip g">connected</span>':'<span class="chip">no key saved</span>'}</td><td class="n">${s.used_today}</td><td class="n">${s.cap}</td><td class="sub">${esc(s.note||'')}</td></tr>`).join('')}</tbody></table></div></div>`;
+  $('#view').innerHTML = h;
+}
 function setupNeeded(){ location.hash = 'setup'; }
 async function viewSetup(){
   $('#view').innerHTML = `<div class="grid g2"><div class="card"><h3>Go-live checklist</h3><ol class="steps">
@@ -580,7 +590,7 @@ async function route(){
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, '')) || 'today';
   if (h.startsWith('t/')){ navRender(''); try { await viewTicker(h.slice(2).toUpperCase()); } catch(e){ $('#view').innerHTML = `<span class="back" onclick="history.back()">← BACK</span><div class="empty">Couldn't show this ticker: ${esc(e.message)}</div>`; } window.scrollTo(0,0); return; }
   navRender(h);
-  const fn = {today:viewToday, watch:viewWatch, market:viewMarket, scanner:viewScanner, other:viewOther, report:viewReport, research:viewResearch, mscan:viewMarketScan, backtest:viewBacktest, paper:viewPaper, journal:viewJournal, setup:viewSetup}[h] || viewToday;
+  const fn = {today:viewToday, watch:viewWatch, market:viewMarket, scanner:viewScanner, other:viewOther, report:viewReport, research:viewResearch, mscan:viewMarketScan, live:viewLive, backtest:viewBacktest, paper:viewPaper, journal:viewJournal, setup:viewSetup}[h] || viewToday;
   try { await fn(); } catch(e){ $('#view').innerHTML = `<div class="empty">Couldn't render this view: ${esc(e.message)}</div>`; }
 }
 let GATED = false;

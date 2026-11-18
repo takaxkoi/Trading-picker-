@@ -186,3 +186,13 @@ tickerbot:
       why: Trading several times normal volume means big players are active, in either direction.
       q: "relative_volume > 3 AND market_cap > 2000000000"
       order: relative_volume
+
+quotes:
+  # Live price board (job "Live prices"). Every run a different source leads, the rest fill gaps,
+  # so no free limit runs out. Calls allowed per source per day:
+  daily_caps:
+    yahoo: 1500          # no key needed
+    finnhub: 3000        # free plan allows 60 a minute
+    tickerbot: 40        # one call covers the whole list; raise if your plan allows more
+    alpaca: 2000         # one call covers the whole list
+    alphavantage: 3      # free key is 25 a day and the data vault uses most of them
