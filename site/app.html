@@ -167,7 +167,7 @@ const FLAG = {breakout:['🚀 breakout','g'],breakdown:['🕳 breakdown','r'],re
 const chips = f => (f||[]).map(x => `<span class="chip ${FLAG[x]?.[1]||''}">${FLAG[x]?.[0]||esc(x)}</span>`).join('');
 const meter = a => { const n = a.samples||0, up = Math.round((a.p_up||0)*n); let h=''; for(let i=0;i<n;i++) h += `<i class="${i<up?'u':'d'}"></i>`; return `<div class="meter" title="${up} of ${n} simulated futures go up">${h}</div>`; };
 
-const TABS = [['today','Today'],['watch','Watchlist'],['research','AI Research'],['market','Market'],['scanner','S&P 500'],['other','Crypto · FX · Gold'],['report','Report Card'],['backtest','Backtest Lab'],['paper','Paper Trading'],['journal','Journal'],['setup','Setup']];
+const TABS = [['today','Today'],['watch','Watchlist'],['research','AI Research'],['mscan','Market Scan'],['market','Market'],['scanner','S&P 500'],['other','Crypto · FX · Gold'],['report','Report Card'],['backtest','Backtest Lab'],['paper','Paper Trading'],['journal','Journal'],['setup','Setup']];
 let LATEST = null, REPORT = null;
 
 function navRender(active){
@@ -539,6 +539,23 @@ async function viewResearch(){
     $('#rsDetail').scrollIntoView({behavior:'smooth'});
   });
 }
+function scanTable(rows){
+  if (!rows || !rows.length) return '<div class="empty">No stocks match right now.</div>';
+  const skip = new Set(['on_watchlist','name','asset_class','asset_type']);
+  const cols = [...new Set(rows.flatMap(r => Object.keys(r)))].filter(k => !skip.has(k) && k !== 'ticker');
+  const fmt = (k, v) => v == null ? '—' : typeof v === 'boolean' ? (v ? '✓' : '') : typeof v !== 'number' ? esc(String(v).slice(0,24))
+    : /pct|change|gap/.test(k) ? `<span class="${cls(v)}">${(v>0?'+':'')+v.toFixed(2)}%</span>` : /market_cap|volume$/.test(k) ? (v>=1e9?(v/1e9).toFixed(1)+'B':v>=1e6?(v/1e6).toFixed(1)+'M':Math.round(v).toLocaleString()) : Math.abs(v)>=100?v.toFixed(1):v.toFixed(2);
+  return `<div class="tbl"><table><thead><tr><th>Ticker</th>${cols.map(c=>`<th class="n">${esc(c.replace(/_/g,' '))}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.ticker)}</b> ${r.on_watchlist?'<span class="chip g">watchlist</span>':''} <span class="muted" style="font-size:11.5px">${esc((r.name||'').slice(0,22))}</span></td>${cols.map(c=>`<td class="n">${fmt(c, r[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+async function viewMarketScan(){
+  const T = await get('tickerbot.json');
+  if (!T){ $('#view').innerHTML = '<div class="empty">The market scan runs after each close. Add the TICKERBOT_API_KEY secret, then run Actions → “Market scan (Tickerbot)”.</div>'; return; }
+  let h = T.status !== 'ok' ? `<div class="warnbox" style="margin-bottom:14px">${esc(T.status)}</div>` : '';
+  h += `<div class="sub" style="margin-bottom:6px">Whole-market screens from Tickerbot · ${T.signals_available||0} signals available · updated ${ago(T.generated)}</div>`;
+  (T.scans||[]).forEach(sc => { h += `<div class="sec-title">${esc(sc.name)} <small>${sc.total!=null?sc.total+' matches':''}</small></div><div class="card"><div class="sub" style="margin-bottom:10px">${esc(sc.why||'')}</div>${sc.error?`<div class="warnbox">${esc(sc.error)}</div>`:scanTable(sc.results)}<div class="sub mono" style="margin-top:10px;font-size:11px;white-space:normal">${esc(sc.q)}</div></div>`; });
+  if ((T.watchlist||[]).length) h += `<div class="sec-title">Your watchlist right now</div><div class="card">${scanTable(T.watchlist)}</div>`;
+  $('#view').innerHTML = h;
+}
 function setupNeeded(){ location.hash = 'setup'; }
 async function viewSetup(){
   $('#view').innerHTML = `<div class="grid g2"><div class="card"><h3>Go-live checklist</h3><ol class="steps">
@@ -563,7 +580,7 @@ async function route(){
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, '')) || 'today';
   if (h.startsWith('t/')){ navRender(''); try { await viewTicker(h.slice(2).toUpperCase()); } catch(e){ $('#view').innerHTML = `<span class="back" onclick="history.back()">← BACK</span><div class="empty">Couldn't show this ticker: ${esc(e.message)}</div>`; } window.scrollTo(0,0); return; }
   navRender(h);
-  const fn = {today:viewToday, watch:viewWatch, market:viewMarket, scanner:viewScanner, other:viewOther, report:viewReport, research:viewResearch, backtest:viewBacktest, paper:viewPaper, journal:viewJournal, setup:viewSetup}[h] || viewToday;
+  const fn = {today:viewToday, watch:viewWatch, market:viewMarket, scanner:viewScanner, other:viewOther, report:viewReport, research:viewResearch, mscan:viewMarketScan, backtest:viewBacktest, paper:viewPaper, journal:viewJournal, setup:viewSetup}[h] || viewToday;
   try { await fn(); } catch(e){ $('#view').innerHTML = `<div class="empty">Couldn't render this view: ${esc(e.message)}</div>`; }
 }
 let GATED = false;

@@ -164,3 +164,25 @@ research:
   # provider: google      # force one provider; default = first key found
   # quick_model: gemini-3.5-flash-lite
   # deep_model: gemini-3.8-flash
+
+tickerbot:
+  # Market-wide scans (Tickerbot, secret TICKERBOT_API_KEY). q is a SQL-style WHERE over signal names;
+  # the full list of names is saved to state/tickerbot_signals.json after the first run.
+  scans:
+    - name: Oversold with heavy volume
+      why: Sharp selloffs on big volume in large companies sometimes mark capitulation and a bounce.
+      q: "rsi_14 < 30 AND volume_ratio_20d > 2 AND market_cap > 2000000000"
+      order: volume_ratio_20d
+    - name: Gap ups on volume
+      why: A stock opening well above yesterday's close on high volume usually has fresh news behind it.
+      q: "gap_up AND relative_volume > 2 AND market_cap > 1000000000"
+      order: gap_pct
+    - name: Biggest movers today (large caps)
+      why: The day's largest moves among big companies. Start here to study what is driving the market.
+      q: "market_cap > 10000000000 AND asset_class = 'stocks'"
+      order: change_1d_pct
+      limit: 15
+    - name: Unusual volume
+      why: Trading several times normal volume means big players are active, in either direction.
+      q: "relative_volume > 3 AND market_cap > 2000000000"
+      order: relative_volume

@@ -1,0 +1,28 @@
+name: Market scan (Tickerbot)
+on:
+  schedule:
+    - cron: "20 21 * * 1-5"   # 4:20 PM EST / 5:20 PM EDT, weekdays after the close
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: oracle-tickerbot
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TICKERBOT_API_KEY: ${{ secrets.TICKERBOT_API_KEY }}
+      ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests pyyaml numpy
+      - name: Scan
+        run: python -m app.tickerbot
+      - name: Save results
+        if: always()
+        run: ./scripts/commit.sh "market scan"
