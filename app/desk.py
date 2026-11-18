@@ -25,7 +25,7 @@ def _records(res, limit: int = 25) -> list[dict]:
 
 def run() -> dict:
     cfg = load_config()
-    out = {"generated": datetime.now(timezone.utc).isoformat(), "errors": [], "movers": {}, "filings": [], "curve": []}
+    out = {"generated": datetime.now(timezone.utc).isoformat(), "errors": [], "movers": {}, "filings": [], "curve": [], "targets": []}
     try:
         from openbb import obb
     except Exception as e:
@@ -50,21 +50,28 @@ def run() -> dict:
             log(f"desk: {label} failed: {type(e).__name__}: {str(e)[:200]}")
             return []
 
-    for kind in ("gainers", "losers", "active"):
-        out["movers"][kind] = tryit(kind, lambda k=kind: getattr(obb.equity.discovery, k)(provider="yfinance"))[:15]
-    out["curve"] = tryit("yield curve", lambda: obb.fixedincome.government.yield_curve(provider="federal_reserve"))
-    keep = {"8-K", "10-Q", "10-K", "4", "SC 13D", "SC 13G", "SCHEDULE 13D", "SCHEDULE 13G", "S-1", "DEF 14A"}
-    for t in [x.upper() for x in cfg.get("watchlist", [])]:
-        rows = tryit(f"filings {t}", lambda t=t: obb.equity.fundamental.filings(symbol=t, provider="sec", limit=40))
-        n = 0
-        for r in rows:
-            form = str(r.get("report_type") or r.get("form_type") or r.get("type") or "")
-            if form not in keep or n >= 4:
+    def first(label, *paths):
+        """OpenBB moved commands between versions; try each known location."""
+        for path, kw in paths:
+            fn = obb
+            try:
+                for part in path.split("."):
+                    fn = getattr(fn, part)
+            except AttributeError:
                 continue
-            n += 1
-            out["filings"].append({"ticker": t, "form": form, "date": str(r.get("filing_date") or r.get("report_date") or "")[:10],
-                                   "url": r.get("report_url") or r.get("filing_detail_url") or r.get("filing_url") or r.get("url"),
-                                   "what": str(r.get("primary_doc_description") or r.get("description") or "")[:120]})
+            rows = tryit(f"{label} via {path}", lambda fn=fn, kw=kw: fn(**kw))
+            if rows:
+                return rows
+        return []
+
+    for kind in ("gainers", "losers", "active"):
+        out["movers"][kind] = first(kind, (f"equity.discovery.{kind}", {"provider": "yfinance"}), (f"yfinance.equity.discovery.{kind}", {}),
+                                    ("nasdaq.markets.movers", {"category": kind}), ("nasdaq.markets.movers", {}))[:15]
+    out["targets"] = []
+    for t in [x.upper() for x in cfg.get("watchlist", [])]:
+        rows = first(f"consensus {t}", ("equity.estimates.consensus", {"symbol": t, "provider": "yfinance"}), ("yfinance.equity.estimates.consensus", {"symbol": t}))
+        if rows:
+            out["targets"].append({"ticker": t, **{k: v for k, v in rows[0].items() if k not in ("index", "symbol", "name")}})
     out["filings"].sort(key=lambda r: r["date"], reverse=True)
     out["status"] = "ok" if not out["errors"] else f"{len(out['errors'])} source calls failed"
     write_json(SITE_DATA / "desk.json", out)

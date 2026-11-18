@@ -72,6 +72,52 @@ def reddit(kind: str, note: dict) -> list[dict]:
     return []
 
 
+def archive(note: dict) -> list[dict]:
+    """Reddit archives that allow cloud servers. Vote counts can lag the live site by a few hours."""
+    since = int(datetime.now(timezone.utc).timestamp()) - 86400
+    tries = [("pullpush", f"https://api.pullpush.io/reddit/search/submission/?subreddit=wallstreetbets&after={since}&size=100&sort=desc&sort_type=score"),
+             ("arctic shift", f"https://arctic-shift.photon-reddit.com/api/posts/search?subreddit=wallstreetbets&after={since}&limit=100")]
+    for name, url in tries:
+        try:
+            r = requests.get(url, headers=UA, timeout=30)
+            rows = (r.json().get("data") or []) if r.ok else []
+            out = [{"title": html.unescape(d.get("title", ""))[:240], "url": "https://www.reddit.com" + d.get("permalink", ""), "upvotes": int(d.get("score") or 0),
+                    "comments": int(d.get("num_comments") or 0), "flair": d.get("link_flair_text") or "",
+                    "time": datetime.fromtimestamp(int(d.get("created_utc") or 0), timezone.utc).isoformat(), "list": name}
+                   for d in rows if d.get("title") and d.get("permalink") and not d.get("stickied") and d.get("removed_by_category") is None]
+            note[name] = "ok" if out else f"HTTP {r.status_code}, no posts"
+            if out:
+                return out
+        except Exception as e:
+            note[name] = type(e).__name__
+    return []
+
+
+def oauth(note: dict) -> list[dict]:
+    """Official Reddit API. Used when REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET are saved (free 'script' app at reddit.com/prefs/apps)."""
+    import os
+    cid, sec = os.environ.get("REDDIT_CLIENT_ID"), os.environ.get("REDDIT_CLIENT_SECRET")
+    if not cid or not sec:
+        return []
+    try:
+        ua = {"User-Agent": "trading-picker/1.0 by takaxkoi"}
+        tok = requests.post("https://www.reddit.com/api/v1/access_token", auth=(cid, sec), data={"grant_type": "client_credentials"}, headers=ua, timeout=20).json()["access_token"]
+        out = []
+        for kind in ("hot", "top"):
+            r = requests.get(f"https://oauth.reddit.com/r/wallstreetbets/{kind}", params={"limit": 40, "t": "day"}, headers={**ua, "Authorization": f"Bearer {tok}"}, timeout=20)
+            for c in r.json()["data"]["children"]:
+                d = c["data"]
+                if not d.get("stickied"):
+                    out.append({"title": html.unescape(d.get("title", ""))[:240], "url": "https://www.reddit.com" + d.get("permalink", ""), "upvotes": int(d.get("score", 0)),
+                                "comments": int(d.get("num_comments", 0)), "flair": d.get("link_flair_text") or "",
+                                "time": datetime.fromtimestamp(d.get("created_utc", 0), timezone.utc).isoformat(), "list": kind})
+        note["reddit api"] = "ok" if out else "no posts"
+        return out
+    except Exception as e:
+        note["reddit api"] = type(e).__name__
+        return []
+
+
 def mentions(note: dict) -> list[dict]:
     try:
         r = requests.get("https://apewisdom.io/api/v1.0/filter/wallstreetbets/page/1", headers=UA, timeout=25)
@@ -94,11 +140,18 @@ def run() -> dict:
     watch = {t.upper() for t in cfg.get("watchlist", [])}
     uni, note = universe(), {}
     posts, seen = [], set()
-    for kind in ("hot", "top"):
-        for p in reddit(kind, note):
-            if p["url"] not in seen:
-                seen.add(p["url"])
-                posts.append(p)
+    for p in oauth(note):
+        if p["url"] not in seen:
+            seen.add(p["url"])
+            posts.append(p)
+    if not posts:
+        for kind in ("hot", "top"):
+            for p in reddit(kind, note):
+                if p["url"] not in seen:
+                    seen.add(p["url"])
+                    posts.append(p)
+    if not posts:
+        posts = archive(note)
     labels, method = score([p["title"] for p in posts])
     for p, s in zip(posts, labels):
         p.update(s)

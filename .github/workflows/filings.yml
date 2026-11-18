@@ -1,0 +1,27 @@
+name: Filings Lab (SEC)
+on:
+  schedule:
+    - cron: "15 9 * * 6"   # Saturday morning: annual reports change slowly
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: oracle-filings
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q "pandas<2.3" "numpy<2.3" pyyaml requests
+      - name: Download filings, test factors, score companies
+        run: python -m app.filings
+      - name: Save results
+        if: always()
+        run: ./scripts/commit.sh "filings lab"
