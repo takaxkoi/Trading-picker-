@@ -95,7 +95,7 @@ def story(t, f, rets, sector_ret, news, wsb, lens, corr_mkt) -> dict:
     tgt, rec, na = g("targetMeanPrice"), g("recommendationMean"), g("numberOfAnalystOpinions")
     if tgt and px and na and na >= 5:
         up = tgt / px - 1
-        add(up > 0.10 or None if up >= 0 else False, f"Analysts' average target is {up:.0%} above the price ({na:.0f} analysts).", f"The price is already {abs(up):.0%} above analysts' average target.")
+        add(up > 0.10 or None if up >= -0.03 else False, f"Analysts' average target is {up:.0%} above the price ({na:.0f} analysts).", f"The price is already {abs(up):.0%} above analysts' average target.")
     if rec and na and na >= 5 and rec > 3:
         bear.append(f"Analysts lean Hold or Sell (rating {rec:.1f}, where 1 is Strong Buy).")
     sh = g("shortPercentOfFloat")
@@ -138,12 +138,13 @@ def run() -> dict:
     tickers = sorted({t for t in list(fund.index) + watch + [t.upper() for t in cfg.get("indices", [])] if isinstance(t, str) and (ROOT / "data" / "history" / f"{t}.csv.gz").exists()})
     extra = vault_prices()
     bars = {t: d for t in tickers if (d := ohlc(t, extra)) is not None and len(d) > 60}
-    close = pd.DataFrame({t: d.set_index("date")["close"] for t, d in bars.items()}).sort_index().ffill()
-    ret = close.pct_change(fill_method=None)
+    raw = pd.DataFrame({t: d.set_index("date")["close"] for t, d in bars.items()}).sort_index()
+    close = raw.ffill()
+    ret = raw.pct_change(fill_method=None)
     corr = ret.tail(126).corr(min_periods=60)
 
     def chg(t, n):
-        s = close[t].dropna()
+        s = raw[t].dropna()
         return float(s.iloc[-1] / s.iloc[-1 - n] - 1) if len(s) > n else None
 
     sector = fund["sector"].to_dict() if "sector" in fund else {}

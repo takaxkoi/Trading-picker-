@@ -27,8 +27,18 @@ def universe() -> set[str]:
     return {t for t in u if t.isalpha()} | {"GME", "AMC", "PLTR", "HOOD", "SOFI", "RDDT", "MSTR", "RIVN", "NIO", "SPY", "QQQ", "IWM", "TQQQ", "SQQQ", "ASTS", "RKLB", "IONQ", "OKLO", "CRWV"}
 
 
+NAMES = {"nvidia": "NVDA", "tesla": "TSLA", "apple": "AAPL", "microsoft": "MSFT", "amazon": "AMZN", "google": "GOOGL", "alphabet": "GOOGL", "meta": "META",
+         "palantir": "PLTR", "gamestop": "GME", "micron": "MU", "broadcom": "AVGO", "netflix": "NFLX", "coinbase": "COIN", "intel": "INTC", "robinhood": "HOOD",
+         "supermicro": "SMCI", "super micro": "SMCI", "uber": "UBER", "jpmorgan": "JPM", "boeing": "BA", "disney": "DIS", "walmart": "WMT", "oracle": "ORCL",
+         "coreweave": "CRWV", "reddit": "RDDT", "microstrategy": "MSTR", "berkshire": "BRK-B", "costco": "COST", "nike": "NKE", "salesforce": "CRM", "amd": "AMD"}
+
+
 def find_tickers(text: str, uni: set[str]) -> list[str]:
     out = []
+    low = (text or "").lower()
+    for name, t in NAMES.items():
+        if re.search(rf"\b{re.escape(name)}\b", low) and t not in out:
+            out.append(t)
     for m in re.finditer(r"\$([A-Za-z]{1,5})\b|\b([A-Z]{2,5})\b", text or ""):
         t = (m.group(1) or m.group(2)).upper()
         if (m.group(1) or t not in STOP) and t in uni and t not in out:
