@@ -86,8 +86,11 @@ def yahoo(tickers, m):
             if r.status_code == 429:
                 m.note["yahoo"] = "Yahoo is rate-limiting this server"
                 break
-            meta = r.json()["chart"]["result"][0]["meta"]
-            row = _row(t, meta.get("regularMarketPrice"), meta.get("chartPreviousClose") or meta.get("previousClose"),
+            res = r.json()["chart"]["result"][0]
+            meta = res["meta"]
+            closes = [c for c in (res.get("indicators", {}).get("quote") or [{}])[0].get("close") or [] if c is not None]
+            prev = closes[-2] if len(closes) >= 2 else meta.get("previousClose")  # yesterday's close, not the start of the range
+            row = _row(t, meta.get("regularMarketPrice"), prev,
                        meta.get("regularMarketDayHigh"), meta.get("regularMarketDayLow"), _iso(meta.get("regularMarketTime")))
             if row:
                 out[t] = row
