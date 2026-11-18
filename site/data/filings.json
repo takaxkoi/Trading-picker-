@@ -1,1 +1,1 @@
-{"generated":"2026-11-18T11:40:15.900282+00:00","status":"SEC EDGAR did not answer this run. It will retry on the next schedule."}
+{"generated":"2026-11-18T11:43:06.668235+00:00","status":"SEC EDGAR refused the download (HTTP 403). SEC requires a real contact email on automated requests: add yours in app/config.yaml under filings.contact, then run this job again."}
