@@ -171,7 +171,7 @@ tickerbot:
   scans:
     - name: Oversold with heavy volume
       why: Sharp selloffs on big volume in large companies sometimes mark capitulation and a bounce.
-      q: "rsi_14 < 30 AND volume_ratio_20d > 2 AND market_cap > 2000000000"
+      q: "rsi_14 < 30 AND relative_volume > 2 AND market_cap > 2000000000"
       order: volume_ratio_20d
     - name: Gap ups on volume
       why: A stock opening well above yesterday's close on high volume usually has fresh news behind it.
