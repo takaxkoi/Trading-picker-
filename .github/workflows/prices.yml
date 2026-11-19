@@ -28,6 +28,9 @@ jobs:
       - run: pip install -q requests pyyaml numpy
       - name: Prices
         run: python -m app.quotes
+      - name: Live news
+        if: always()
+        run: python -m app.livenews
       - name: Save results
         if: always()
         run: ./scripts/commit.sh "live prices"
