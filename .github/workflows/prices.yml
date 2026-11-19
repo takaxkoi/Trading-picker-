@@ -1,18 +1,22 @@
 name: Live prices
+# GitHub starts scheduled jobs hours late on this account, so one start keeps itself going:
+# during market hours the job refreshes prices and news every 30 minutes until the close,
+# handing over to a fresh run before GitHub's 6-hour job limit.
 on:
   schedule:
-    - cron: "7,37 12-21 * * 1-5"   # every 30 min from pre-market to just after the close, weekdays
-    - cron: "7 23 * * 1-5"          # one after-hours check
+    - cron: "7 11-21 * * 1-5"   # hourly attempts on weekdays; the first one that fires starts the day's loop
+    - cron: "7 23 * * 1-5"      # one after-hours check
   workflow_dispatch:
 permissions:
   contents: write
+  actions: write
 concurrency:
   group: oracle-prices
   cancel-in-progress: false
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 350
     env:
       TICKERBOT_API_KEY: ${{ secrets.TICKERBOT_API_KEY || secrets.TICKER }}
       FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY || secrets.FINHUB }}
@@ -20,17 +24,29 @@ jobs:
       ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
       ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
       ORACLE_SYNC_TOKEN: ${{ secrets.ORACLE_SYNC_TOKEN || secrets.ORACLE }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -q requests pyyaml numpy
-      - name: Prices
-        run: python -m app.quotes
-      - name: Live news
-        if: always()
-        run: python -m app.livenews
-      - name: Save results
-        if: always()
-        run: ./scripts/commit.sh "live prices"
+      - name: Prices and news, every 30 minutes until the close
+        run: |
+          started=$(date -u +%s)
+          news_done=""
+          while true; do
+            git pull -q --rebase -X theirs origin "$GITHUB_REF_NAME" || git rebase --abort || true
+            python -m app.quotes || true
+            python -m app.livenews || true
+            ./scripts/commit.sh "live prices" || true
+            dow=$(date -u +%u); hm=$((10#$(date -u +%H) * 60 + 10#$(date -u +%M))); hour=$(date -u +%H)
+            # market window: weekdays 11:00 to 21:40 UTC (6 AM to 4:40 PM Eastern)
+            if [ "$dow" -gt 5 ] || [ "$hm" -lt 660 ] || [ "$hm" -ge 1300 ]; then echo "outside market hours, done"; break; fi
+            # headlines + WallStreetBets three times a day, started from here so they are not late either
+            case "$hour" in 13|17|20) if [ "$news_done" != "$hour" ]; then gh workflow run news.yml --ref "$GITHUB_REF_NAME" || true; news_done="$hour"; fi;; esac
+            if [ $(( $(date -u +%s) - started )) -ge 19200 ]; then
+              echo "handing over to a fresh run"; gh workflow run prices.yml --ref "$GITHUB_REF_NAME" || true; break
+            fi
+            sleep 1740
+          done
